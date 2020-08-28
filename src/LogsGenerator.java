@@ -1,25 +1,34 @@
 import java.io.*;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class LogsGenerator {
 
     private static final SimpleDateFormat time = new SimpleDateFormat("yyyy.MM.dd, HH:mm:ss");
+    private static HashMap<String, String> cacheLogs = new HashMap<>();
 
-    public void doLogs(String pathToFile, String component, String message) {
+    public static void doLogs(String pathToFile) {
         try {
-            String inputLine = "";
+            AtomicReference<String> inputLine = new AtomicReference<>("");
             BufferedReader inFile = new BufferedReader(new FileReader(pathToFile));
-            FileOutputStream outputFile = new FileOutputStream(pathToFile, true);
+            FileOutputStream outputFile = new FileOutputStream(pathToFile);
             Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
-            if (component.length() < 15) {
-                inputLine += "[" + time.format(timestamp) + "]" + "[" + component.toUpperCase() + "]:\t\t" + message + "\n";
-            } else {
-                inputLine += "[" + time.format(timestamp) + "]" + "[" + component.toUpperCase() + "]:\t" + message + "\n";
-            }
+            cacheLogs.forEach((component, message) -> {
+                if (!component.equals("LogsAnalyse")) {
+                    if (component.length() < 15) {
+                        inputLine.set(inputLine + "[" + time.format(timestamp) + "]" + "[" + component.toUpperCase() + "]:\t\t" + message + "\n");
+                    } else {
+                        inputLine.set(inputLine + "[" + time.format(timestamp) + "]" + "[" + component.toUpperCase() + "]:\t" + message + "\n");
+                    }
+                } else {
+                    inputLine.set(inputLine + "[" + time.format(timestamp) + "]" + "[" + component.toUpperCase() + "]:\n" + message + "\n");
+                }
+            });
 
-            outputFile.write(inputLine.getBytes());
+            outputFile.write(inputLine.get().getBytes());
             inFile.close();
             outputFile.close();
             System.out.println("Successfully wrote to the file.");
@@ -29,17 +38,18 @@ public class LogsGenerator {
         }
     }
 
-    public void createLogs(String component, String message) {
-        String pathToFile = "C:\\pathtofile\\Logs";
+    public static void createLogs(String component, String message) {
+        cacheLogs.put(component, message);
+        String pathToFile = "C:\\pathTo\\Logs";
         File file = new File(pathToFile);
         if (file.exists() && !file.isDirectory()) {
             System.out.print("Logs are already exist. ");
-            doLogs(pathToFile, component, message);
+            doLogs(pathToFile);
         } else {
             try {
                 System.out.print("Creating new logs. ");
                 file.createNewFile();
-                doLogs(pathToFile, component, message);
+                doLogs(pathToFile);
             } catch (IOException e) {
                 e.printStackTrace();
                 System.out.println("Can not create autoDiagnoseLogs");
